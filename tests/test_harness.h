@@ -9,6 +9,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <exception>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -63,6 +64,20 @@ std::string show(const T& value) {
     std::ostringstream os;
     os << value;
     return os.str();
+}
+
+// Strings are quoted so empty and whitespace-only values are visible in failures.
+inline std::string show(const std::string& value) { return '"' + value + '"'; }
+
+// Prints vectors as {a, b, c}.
+template <typename T>
+std::string show(const std::vector<T>& values) {
+    std::string out = "{";
+    for (std::size_t i = 0; i < values.size(); ++i) {
+        if (i != 0) out += ", ";
+        out += show(values[i]);
+    }
+    return out + "}";
 }
 
 inline std::string show(bool value) { return value ? "true" : "false"; }
@@ -208,22 +223,34 @@ inline int run_all(const char* suite) {
         description, &TINY_CAT(tiny_test_fn_, __LINE__));                         \
     static void TINY_CAT(tiny_test_fn_, __LINE__)()
 
+// An exception escaping the checked expression is recorded as a failure that
+// names the expression, instead of terminating the case with no context.
 #define TINY_CHECK(cond)                                                          \
     do {                                                                          \
-        if (!(cond)) {                                                            \
+        try {                                                                     \
+            if (!(cond)) {                                                        \
+                ::tinytest::record(__FILE__, __LINE__,                            \
+                                   std::string("expected: ") + #cond);            \
+            }                                                                     \
+        } catch (const std::exception& tiny_ex_) {                                \
             ::tinytest::record(__FILE__, __LINE__,                                \
-                               std::string("expected: ") + #cond);                \
+                               std::string(#cond) + " threw: " + tiny_ex_.what()); \
         }                                                                         \
     } while (false)
 
 #define TINY_CHECK_EQ(actual, expected)                                           \
     do {                                                                          \
-        auto&& tiny_a_ = (actual);                                                \
-        auto&& tiny_e_ = (expected);                                              \
-        if (!(tiny_a_ == tiny_e_)) {                                              \
+        try {                                                                     \
+            auto&& tiny_a_ = (actual);                                            \
+            auto&& tiny_e_ = (expected);                                          \
+            if (!(tiny_a_ == tiny_e_)) {                                          \
+                ::tinytest::record(__FILE__, __LINE__,                            \
+                                   std::string(#actual) + " == " + #expected +    \
+                                       "  (actual: " + ::tinytest::show(tiny_a_) + \
+                                       ", expected: " + ::tinytest::show(tiny_e_) + ")"); \
+            }                                                                     \
+        } catch (const std::exception& tiny_ex_) {                                \
             ::tinytest::record(__FILE__, __LINE__,                                \
-                               std::string(#actual) + " == " + #expected +        \
-                                   "  (actual: " + ::tinytest::show(tiny_a_) +    \
-                                   ", expected: " + ::tinytest::show(tiny_e_) + ")"); \
+                               std::string(#actual) + " threw: " + tiny_ex_.what()); \
         }                                                                         \
     } while (false)

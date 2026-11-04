@@ -7,6 +7,11 @@ target_link_libraries(test_unique_ptr PRIVATE tiny-stl::tiny-stl tiny-stl-saniti
 target_include_directories(test_unique_ptr PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 add_test(NAME unique_ptr COMMAND test_unique_ptr)
 
+add_executable(test_split ext/test_split.cpp)
+target_link_libraries(test_split PRIVATE tiny-stl::tiny-stl tiny-stl-sanitizers)
+target_include_directories(test_split PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+add_test(NAME split COMMAND test_split)
+
 # The custom-deleter suite is excluded from the default build so that a
 # compilation failure in that half does not stop the other suite from running.
 # ctest builds it on demand, and reports a compile error as a failing test.
